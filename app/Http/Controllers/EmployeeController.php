@@ -137,4 +137,39 @@ class EmployeeController extends Controller
          return response()->stream($callback, 200, $headers);
 
     }
+
+    public function getStatistic(Request $request){
+        $currentMonth = Carbon::now()->format('Y-m');
+        $monthYear = $request->month ? $request->month : $currentMonth;
+        $time = explode("-", $monthYear);
+        $year = $time[0];
+        $month = $time[1];
+        $checkins = $this->checkinService->getListCheckinByFilter($month, $year);
+        $daily = array();
+        foreach ($checkins as $checkin) {
+            $daily[$checkin["employee_id"]][$checkin["checkin_at"]] = $checkin["temperature"];
+        }
+        $startDate = Carbon::create($year, $month)->startOfMonth()->format('Y-m-d');
+        $endDate = Carbon::create($year, $month)->lastOfMonth()->format('Y-m-d');
+        $period = CarbonPeriod::create($startDate, $endDate);
+        foreach ($period as $date) {
+            $listDate[] = $date->format('Y-m-d');
+        }
+        $employee = Employee::all()->toArray();
+        $result = [];
+        foreach ($employee as $e) {
+            $item = [];
+            $item[] = $e["name"];
+            for ($i = 0, $n = count($listDate); $i < $n; $i++) {
+                $date = $listDate[$i];
+                if (isset($daily[$e["id"]]) == false || isset($daily[$e["id"]][$date]) == false) {
+                    $item[] = "-";
+                } else {
+                    $item[] = $daily[$e["id"]][$date];
+                }
+            }
+            $result[] = $item;
+        }
+        return view('employee_export', compact('monthYear', 'listDate', 'result'));
+    }
 }

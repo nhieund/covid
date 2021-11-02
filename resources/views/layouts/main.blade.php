@@ -27,6 +27,7 @@
 
     <!-- Styles -->
     <link href="{{ asset('css/app.css') }}" rel="stylesheet">
+    @stack('css')
     <style>
         /* Show it is fixed to the top */
 body {

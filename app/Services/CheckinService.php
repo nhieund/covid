@@ -60,4 +60,17 @@ class CheckinService implements CheckinServiceInterface
         ];
     }
 
+    public function getListCheckinByFilter($month, $year)
+    {
+        $results = $this->checkinRepository->findAll();
+        $results = $results->whereMonth('checkin_at', '=' , $month)
+            ->whereYear('checkin_at', '=' , $year)
+            ->orderBy('checkin_at', "ASC")
+            ->get();
+        $results = $results->map(function ($employee) {
+            return $this->renderCheckin($employee);
+        })->toArray();
+        return $results;
+    }
+
 }
