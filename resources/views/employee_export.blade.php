@@ -12,6 +12,7 @@
                         <input class="form-control" type="month" id="month" name="month"
                                value="{{ !empty($monthYear) ? $monthYear : old('month') }}">
                         <button class="btn btn-primary mx-2" type="submit">Search</button>
+                        <button class="btn btn-primary" type="button" onclick="exportData()">Export</button>
                     </div>
                 </form>
             </div>
@@ -41,3 +42,11 @@
         </div>
     </div>
 @endsection
+<script>
+    function exportData() {
+        let month = $('#month').val();
+        let base = '{!! route('exportStatistic') !!}';
+        window.location.href = base + '?month=' + month;
+    }
+</script>
+

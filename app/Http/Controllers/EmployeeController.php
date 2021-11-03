@@ -57,23 +57,10 @@ class EmployeeController extends Controller
     }
     public function doExport(Request $request){
         $checkins = $this->checkinService->doExport();
-        //dd($checkins);
         $daily = array();
-        $data = array();
-        $item = array();
-        $employee = array(
-            array("id"=>3,"name"=>"name 3"),
-            array("id"=>4,"name"=>"name 4")
-        );
         foreach($checkins["items"] as $checkin){
            $daily[$checkin["employee_id"]][$checkin["checkin_at"]] =  $checkin["temperature"];
-          //var_dump($checkin);
-          //dd($checkin);
         }
-        //$date=date_create("2021-10-01");
-
-        //$currentDateTime = Carbon::now();
-        //echo date_format($date,"Y-m-d");
         $currentDateTime = Carbon::create(2021, 10, 01, 00, 00, 00); //Tạo 1 datetime
         $header = array("Họ và tên");
         $period = CarbonPeriod::create(Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth());
@@ -81,81 +68,19 @@ class EmployeeController extends Controller
         {
             $header[] = $date->format('Y-m-d');
         }
-        // for( $i=0,$n=30; $i <= $n; $i++){
-        //     // date_add($date,date_interval_create_from_date_string("1 days"));
-        //      $newDateTime = $currentDateTime;
-        //    //  $newDateTime = $newDateTime->addDay($i);
-        //      //$date = date_format($date,"Y-m-d");
-        //      $date = $newDateTime->addDay($i)->format("Y-m-d");
-        //      array_push($header,$date);
-        //  }
-       //  var_dump($header);exit;
-        $fileName = "NTA_DO_THAN_NHIET_THANG".$currentDateTime->format('m-Y').".csv";
-        // $headers = array(
-        //     'Content-Type' => 'text/csv',
-        //     'Content-Disposition' => 'attachment; filename="tweets.csv"',
-        //     );
-            $headers = array(
-                'Content-Encoding'=> 'UTF-8',
-                "Content-type"        => "text/csv; charset=UTF-8",
-                "Content-Disposition" => "attachment; filename=$fileName",
-                "Pragma"              => "no-cache",
-                "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-                "Expires"             => "0",
-                "Content-transfer-encoding"=>" binary"
-            );
-            $employee = Employee::all()->toArray();
-            $callback = function() use($employee, $header, $daily) {
-                $file = fopen('php://output', 'w');
-                fputs($file, chr(0xEF) . chr(0xBB) . chr(0xBF) );
-                fputcsv($file, $header);
-                foreach($employee as $e){
-                    $item = [];
-                    $item[] = $e["name"];
-                    for( $i=1,$n=count($header); $i < $n; $i++){
-                        $date = $header[$i];
-                        if(isset($daily[$e["id"]]) == false || isset($daily[$e["id"]][$date]) == false){
-                           // $data[$e["name"]][] = "-";
-                           $item[] =  "-";
-                        }else{
-                            //$data[$e["name"]][] = $daily[$e["id"]][$date];
-                           $item[] =  $daily[$e["id"]][$date];
-                        }
-                    }
-                    fputcsv($file, $item);
-                }
-                fclose($file);
-            };
-        // our response, this will be equivalent to your download() but
-        // without using a local file
-        //return Response::make(rtrim($output, "\n"), 200, $headers);
-        // return response(rtrim($output, "\n"))
-        //     ->header('Content-Type', 'text/csv')
-        //     ->header('Content-Disposition',  'attachment; filename="tweets.csv"');
-         //$index ++;
-         //dd($data);
-         return response()->stream($callback, 200, $headers);
-
+        return $this->checkinService->generateCsv($header,$daily,$currentDateTime);
     }
 
+    /**
+     * @param Request $request
+     * @return \Illuminate\Contracts\View\View
+     */
     public function getStatistic(Request $request){
-        $currentMonth = Carbon::now()->format('Y-m');
-        $monthYear = $request->month ? $request->month : $currentMonth;
-        $time = explode("-", $monthYear);
-        $year = $time[0];
-        $month = $time[1];
-        $checkins = $this->checkinService->getListCheckinByFilter($month, $year);
-        $daily = array();
-        foreach ($checkins as $checkin) {
-            $daily[$checkin["employee_id"]][$checkin["checkin_at"]] = $checkin["temperature"];
-        }
-        $startDate = Carbon::create($year, $month)->startOfMonth()->format('Y-m-d');
-        $endDate = Carbon::create($year, $month)->lastOfMonth()->format('Y-m-d');
-        $period = CarbonPeriod::create($startDate, $endDate);
-        foreach ($period as $date) {
-            $listDate[] = $date->format('Y-m-d');
-        }
+        $data = $this->checkinService->getData($request);
         $employee = Employee::all()->toArray();
+        $listDate = $data['listDate'];
+        $daily = $data['daily'];
+        $monthYear = $data['monthYear'];
         $result = [];
         foreach ($employee as $e) {
             $item = [];
@@ -171,5 +96,21 @@ class EmployeeController extends Controller
             $result[] = $item;
         }
         return view('employee_export', compact('monthYear', 'listDate', 'result'));
+    }
+
+    /**
+     * @param Request $request
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
+    public function exportStatistic(Request $request){
+        $data = $this->checkinService->getData($request);
+        $daily = $data['daily'];
+        $year = $data['year'];
+        $month = $data['month'];
+        $header = array("Họ và tên");
+        $listDate = $data['listDate'];
+        $header = array_merge($header,$listDate);
+        $currentDateTime = Carbon::create($year, $month, 01, 00, 00, 00);
+        return $this->checkinService->generateCsv($header,$daily,$currentDateTime);
     }
 }
